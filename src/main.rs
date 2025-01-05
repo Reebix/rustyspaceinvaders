@@ -238,15 +238,18 @@ fn main() {
             iteration += 1;
         }
 
-        if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) {
+        if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No)
+            || window.is_key_pressed(Key::W, minifb::KeyRepeat::No)
+        {
             bullets.push((player_pos.0, player_pos.1));
         }
-
-        if window.is_key_down(Key::Left) && player_pos.0 > 0 {
+        if (window.is_key_down(Key::Left) || window.is_key_down(Key::A)) && player_pos.0 > 0 {
             player_pos.0 -= player_speed;
         }
 
-        if window.is_key_down(Key::Right) && player_pos.0 < WIDTH - get_player().width {
+        if (window.is_key_down(Key::Right) || window.is_key_down(Key::D))
+            && player_pos.0 < WIDTH - get_player().width
+        {
             player_pos.0 += player_speed;
         }
 
