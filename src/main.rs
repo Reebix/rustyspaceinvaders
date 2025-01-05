@@ -1,10 +1,13 @@
+// hide console
+#![windows_subsystem = "windows"]
+
 mod drawings;
 
-use crate::drawings::{get_bullet, get_player};
+use crate::drawings::{get_bullet, get_invader, get_player};
 use minifb::{Key, Window, WindowOptions};
 
-const WIDTH: usize = 640;
-const HEIGHT: usize = 480;
+const WIDTH: usize = 480;
+const HEIGHT: usize = 450;
 
 //00000000 00000000 00000000
 //r        g        b
@@ -25,14 +28,16 @@ fn insert_drawing(buffer: &mut [u32], x: usize, y: usize, drawing: &drawings::Dr
 
 fn main() {
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
+
     let player_speed = 4;
     let bullet_speed = 8;
+    let mut invader_speed: isize = 1;
 
-    let mut bullets = vec![];
-
+    let mut invader_pos = (30, 30);
     let mut player_pos = (WIDTH / 2, HEIGHT - 50);
 
-    // println!("{}", from_rgb(0, 255, 0));
+    let mut bullets = vec![];
+    let mut invaders = [true; 12 * 4];
 
     let mut window = Window::new(
         "Rusty Space Invaders",
@@ -46,7 +51,7 @@ fn main() {
 
     window.set_target_fps(60);
 
-    while window.is_open() && !window.is_key_down(Key::Escape) {
+    while window.is_open() && !window.is_key_down(Key::Escape) && invaders.iter().any(|&x| x) {
         // clear the buffer
         for i in buffer.iter_mut() {
             *i = 0;
@@ -72,7 +77,58 @@ fn main() {
             );
         });
 
+        // draw player
         insert_drawing(&mut buffer, player_pos.0, player_pos.1, &get_player());
+
+        // update invaders
+        invader_pos.0 += invader_speed;
+        if invader_pos.0 > (WIDTH - 12 * 30) as isize || invader_pos.0 < 0 {
+            invader_speed = -invader_speed;
+            invader_pos.1 += 10;
+        }
+
+        // draw invaders
+        for i in 0..12 {
+            for j in 0..4 {
+                if invaders[i * 4 + j] {
+                    insert_drawing(
+                        &mut buffer,
+                        (invader_pos.0 + (i * 30) as isize) as usize,
+                        invader_pos.1 + j * 30,
+                        &get_invader(),
+                    );
+                }
+            }
+        }
+
+        // check for collisions
+        let mut remaining_bullets = vec![];
+        for bullet in bullets.iter() {
+            let mut hit = false;
+            for i in 0..12 {
+                for j in 0..4 {
+                    let invader_x = (invader_pos.0 + (i * 30) as isize) as usize;
+                    let invader_y = invader_pos.1 + j * 30;
+                    if invaders[i * 4 + j]
+                        && bullet.0 >= invader_x
+                        && bullet.0 <= invader_x + 24
+                        && bullet.1 >= invader_y
+                        && bullet.1 <= invader_y + 18
+                    {
+                        invaders[i * 4 + j] = false;
+                        hit = true;
+                        break;
+                    }
+                }
+                if hit {
+                    break;
+                }
+            }
+            if !hit {
+                remaining_bullets.push(*bullet);
+            }
+        }
+        bullets = remaining_bullets;
 
         if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) {
             bullets.push((player_pos.0, player_pos.1));
@@ -86,7 +142,6 @@ fn main() {
             player_pos.0 += player_speed;
         }
 
-        // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
         window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
     }
 }
